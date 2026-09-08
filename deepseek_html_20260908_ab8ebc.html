@@ -1,0 +1,1676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NEXUS · AI Disaster Intelligence</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    <style>
+        /* ----- RESET & FULL‑SCREEN LAYOUT ----- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+            background: #f4f7fb;
+            color: #1a2634;
+        }
+        body {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ----- TOP BAR ----- */
+        #topbar {
+            background: #0b1a2e;
+            color: #fff;
+            padding: 6px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+            min-height: 54px;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        #topbar .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            font-size: 1.2rem;
+        }
+        #topbar .brand i {
+            color: #4fc3f7;
+            font-size: 1.4rem;
+        }
+        #topbar .demo-badge {
+            background: #e65100;
+            color: #fff;
+            font-weight: 700;
+            font-size: 0.7rem;
+            padding: 3px 12px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            animation: pulse-badge 2s infinite;
+        }
+        @keyframes pulse-badge {
+            0%,
+            100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.6;
+            }
+        }
+        #topbar .status-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.75rem;
+            flex-wrap: wrap;
+        }
+        #topbar .status-area .risk-badge {
+            padding: 3px 12px;
+            border-radius: 16px;
+            font-weight: 600;
+            background: #2e7d32;
+            color: #fff;
+            min-width: 60px;
+            text-align: center;
+        }
+        #topbar .status-area .risk-badge.critical {
+            background: #b71c1c;
+        }
+        #topbar .status-area .risk-badge.high {
+            background: #d84315;
+        }
+        #topbar .status-area .risk-badge.elevated {
+            background: #f57c00;
+        }
+        #topbar .status-area .risk-badge.moderate {
+            background: #f9a825;
+            color: #1a1a1a;
+        }
+        #topbar .status-area .risk-badge.low {
+            background: #2e7d32;
+        }
+        #topbar .emergency-btn {
+            background: #d32f2f;
+            border: none;
+            color: #fff;
+            font-weight: 700;
+            padding: 6px 18px;
+            border-radius: 30px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: 0.2s;
+            box-shadow: 0 2px 8px rgba(211, 47, 47, 0.4);
+        }
+        #topbar .emergency-btn:hover {
+            transform: scale(1.03);
+            background: #c62828;
+        }
+        #topbar .emergency-btn i {
+            font-size: 1rem;
+        }
+        .last-updated {
+            color: #90caf9;
+            font-size: 0.65rem;
+            white-space: nowrap;
+        }
+
+        /* ----- MAIN APP CONTAINER ----- */
+        #app-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        /* ----- VIEWS ----- */
+        .view {
+            display: none;
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 16px 20px 16px;
+            background: #f4f7fb;
+            animation: fadeIn 0.25s ease;
+        }
+        .view.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0.3;
+                transform: translateY(6px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ----- BOTTOM NAV ----- */
+        #bottom-nav {
+            background: #0b1a2e;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            flex-shrink: 0;
+            padding: 6px 0 env(safe-area-inset-bottom);
+            border-top: 1px solid #1e3450;
+            z-index: 1000;
+            min-height: 60px;
+            overflow-x: auto;
+        }
+        #bottom-nav .nav-item {
+            color: #90a4ae;
+            font-size: 0.6rem;
+            text-align: center;
+            padding: 4px 10px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            border: none;
+            background: none;
+            font-family: inherit;
+            min-width: 48px;
+            flex-shrink: 0;
+        }
+        #bottom-nav .nav-item i {
+            font-size: 1.2rem;
+        }
+        #bottom-nav .nav-item.active {
+            color: #4fc3f7;
+        }
+        #bottom-nav .nav-item:hover {
+            color: #b0d4e8;
+        }
+        #bottom-nav .nav-item .label {
+            font-size: 0.55rem;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+        }
+
+        /* ----- CARDS ----- */
+        .card {
+            background: #fff;
+            border-radius: 14px;
+            padding: 16px;
+            margin-bottom: 14px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+            border: 1px solid #e8edf3;
+        }
+        .card-title {
+            font-weight: 700;
+            font-size: 0.95rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #0b1a2e;
+        }
+        .card-title i {
+            color: #0b1a2e;
+            width: 20px;
+            text-align: center;
+        }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .stat-box {
+            background: #f0f4fa;
+            border-radius: 10px;
+            padding: 12px;
+            text-align: center;
+        }
+        .stat-box .value {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: #0b1a2e;
+        }
+        .stat-box .label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            color: #546e7a;
+            letter-spacing: 0.5px;
+        }
+
+        /* ----- MAP ----- */
+        #map-container {
+            flex: 1;
+            min-height: 400px;
+            border-radius: 14px;
+            overflow: hidden;
+            border: 1px solid #dce3ec;
+            position: relative;
+            width: 100%;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+            min-height: 400px;
+            background: #e2eaf1;
+        }
+
+        .map-legend {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(10, 25, 40, 0.92);
+            backdrop-filter: blur(4px);
+            color: #f0f6fc;
+            padding: 14px 16px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            line-height: 1.6;
+            min-width: 140px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+            border: 1px solid #4b6a84;
+            pointer-events: none;
+            z-index: 500;
+            user-select: none;
+        }
+        .map-legend h4 {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+            color: #8ab9e6;
+        }
+        .map-legend .item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 3px;
+        }
+        .map-legend .item .symbol {
+            width: 28px;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+        .map-legend .item .swatch {
+            width: 24px;
+            height: 4px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+        .map-legend .item .desc {
+            color: #d6e6f5;
+            font-size: 0.7rem;
+        }
+
+        /* ----- ROUTE CARDS ----- */
+        .route-card {
+            border-left: 4px solid #4fc3f7;
+            padding: 12px 14px;
+            background: #f8fafc;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        .route-card.recommended {
+            border-left-color: #2e7d32;
+            background: #e8f5e9;
+        }
+        .route-card .route-title {
+            font-weight: 700;
+            font-size: 0.9rem;
+            display: flex;
+            justify-content: space-between;
+        }
+        .route-card .route-meta {
+            font-size: 0.75rem;
+            color: #455a64;
+            margin-top: 4px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .route-card .route-meta span {
+            background: #e8edf3;
+            padding: 1px 10px;
+            border-radius: 12px;
+        }
+        .why-btn {
+            background: none;
+            border: none;
+            color: #0b1a2e;
+            font-weight: 600;
+            font-size: 0.7rem;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 6px;
+            background: #e8edf3;
+            margin-top: 6px;
+            transition: 0.15s;
+        }
+        .why-btn:hover {
+            background: #d5dce6;
+        }
+
+        /* ----- SHELTER ITEMS ----- */
+        .shelter-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e8edf3;
+            align-items: center;
+            gap: 8px;
+        }
+        .shelter-item:last-child {
+            border-bottom: none;
+        }
+        .shelter-item .info {
+            flex: 1;
+        }
+        .shelter-item .name {
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        .shelter-item .detail {
+            font-size: 0.7rem;
+            color: #546e7a;
+        }
+        .shelter-item .badge {
+            font-size: 0.6rem;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-weight: 600;
+            background: #e8edf3;
+        }
+        .shelter-item .badge.recommended {
+            background: #2e7d32;
+            color: #fff;
+        }
+
+        /* ----- IMPACT ROWS ----- */
+        .impact-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid #f0f4fa;
+            font-size: 0.85rem;
+        }
+        .impact-row .label {
+            color: #455a64;
+        }
+        .impact-row .level {
+            font-weight: 700;
+        }
+        .impact-row .level.critical {
+            color: #b71c1c;
+        }
+        .impact-row .level.high {
+            color: #d84315;
+        }
+        .impact-row .level.elevated {
+            color: #f57c00;
+        }
+        .impact-row .level.moderate {
+            color: #f9a825;
+        }
+        .impact-row .level.low {
+            color: #2e7d32;
+        }
+
+        /* ----- CONTROLS ----- */
+        .control-group {
+            margin-bottom: 12px;
+        }
+        .control-group label {
+            font-weight: 600;
+            font-size: 0.8rem;
+            display: block;
+            margin-bottom: 4px;
+            color: #263238;
+        }
+        .control-group select {
+            width: 100%;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid #cfd8e0;
+            background: #fff;
+            font-size: 0.9rem;
+            font-family: inherit;
+        }
+        .btn-primary {
+            background: #0b1a2e;
+            color: #fff;
+            border: none;
+            padding: 10px 22px;
+            border-radius: 30px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: 0.15s;
+            font-family: inherit;
+        }
+        .btn-primary:hover {
+            background: #1a3350;
+        }
+        .btn-secondary {
+            background: #e8edf3;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-weight: 600;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: 0.15s;
+            font-family: inherit;
+        }
+        .btn-secondary:hover {
+            background: #d5dce6;
+        }
+
+        /* ----- AI CHAT ----- */
+        #ai-chat {
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid #dce3ec;
+            padding: 12px;
+            max-height: 280px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+        }
+        #ai-chat .msg {
+            padding: 8px 12px;
+            border-radius: 12px;
+            margin-bottom: 6px;
+            max-width: 90%;
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+        #ai-chat .msg.user {
+            background: #e3ecf5;
+            margin-left: auto;
+            color: #0b1a2e;
+        }
+        #ai-chat .msg.assistant {
+            background: #0b1a2e;
+            color: #f0f4fa;
+        }
+        #ai-chat .msg .sim-badge {
+            font-size: 0.55rem;
+            opacity: 0.7;
+            display: block;
+            margin-top: 4px;
+        }
+        #ai-input-row {
+            display: flex;
+            gap: 8px;
+        }
+        #ai-input-row input {
+            flex: 1;
+            padding: 10px 14px;
+            border-radius: 30px;
+            border: 1px solid #cfd8e0;
+            font-size: 0.85rem;
+            font-family: inherit;
+        }
+        #ai-input-row button {
+            background: #0b1a2e;
+            color: #fff;
+            border: none;
+            border-radius: 30px;
+            padding: 0 20px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: 0.15s;
+        }
+        #ai-input-row button:hover {
+            background: #1a3350;
+        }
+
+        /* ----- EMERGENCY MODAL ----- */
+        #emergency-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 20px;
+        }
+        #emergency-modal.open {
+            display: flex;
+        }
+        #emergency-modal .modal-content {
+            background: #fff;
+            border-radius: 20px;
+            max-width: 440px;
+            width: 100%;
+            padding: 28px 22px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        #emergency-modal .modal-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #b71c1c;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        #emergency-modal .emergency-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 16px 0;
+        }
+        #emergency-modal .emergency-grid button {
+            padding: 14px 6px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            background: #f0f4fa;
+            transition: 0.15s;
+        }
+        #emergency-modal .emergency-grid button i {
+            font-size: 1.6rem;
+        }
+        #emergency-modal .emergency-grid button:hover {
+            background: #dce3ec;
+        }
+        #emergency-modal .emergency-grid button.danger {
+            background: #d32f2f;
+            color: #fff;
+        }
+        #emergency-modal .emergency-grid button.danger:hover {
+            background: #b71c1c;
+        }
+        #emergency-modal .sos-section {
+            margin-top: 14px;
+            border-top: 1px solid #e8edf3;
+            padding-top: 14px;
+        }
+        #emergency-modal .sos-section button {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            background: #b71c1c;
+            color: #fff;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: 0.15s;
+        }
+        #emergency-modal .sos-section button:hover {
+            background: #880e0e;
+        }
+        #emergency-modal .close-modal {
+            margin-top: 12px;
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 10px;
+            background: #e8edf3;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        /* ----- TIMELINE ----- */
+        .timeline-item {
+            display: flex;
+            gap: 14px;
+            padding: 8px 0;
+            border-bottom: 1px solid #e8edf3;
+        }
+        .timeline-item .time {
+            font-weight: 700;
+            font-size: 0.75rem;
+            color: #0b1a2e;
+            min-width: 56px;
+        }
+        .timeline-item .desc {
+            font-size: 0.8rem;
+            color: #37474f;
+        }
+        .timeline-item .sim-label {
+            font-size: 0.55rem;
+            color: #78909c;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        /* ----- METHODOLOGY ----- */
+        .methodology-section {
+            margin-bottom: 16px;
+        }
+        .methodology-section h4 {
+            font-size: 0.9rem;
+            color: #0b1a2e;
+            margin-bottom: 4px;
+        }
+        .methodology-section p,
+        .methodology-section li {
+            font-size: 0.8rem;
+            color: #455a64;
+            line-height: 1.5;
+        }
+        .methodology-section ul {
+            padding-left: 20px;
+        }
+
+        /* ----- TAGS ----- */
+        .tag {
+            display: inline-block;
+            padding: 1px 10px;
+            border-radius: 12px;
+            font-size: 0.6rem;
+            font-weight: 600;
+            background: #e8edf3;
+            color: #263238;
+        }
+        .tag.sim {
+            background: #e65100;
+            color: #fff;
+        }
+
+        /* ----- RESPONSIVE TWEAKS (Desktop‑first) ----- */
+        @media (max-width: 768px) {
+            #bottom-nav .nav-item {
+                padding: 4px 6px;
+                min-width: 40px;
+            }
+            #bottom-nav .nav-item .label {
+                font-size: 0.5rem;
+            }
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+            .view {
+                padding: 12px 12px 16px 12px;
+            }
+            .map-legend {
+                top: 8px;
+                right: 8px;
+                padding: 10px 12px;
+                font-size: 0.6rem;
+                min-width: 100px;
+            }
+            .map-legend .item .symbol {
+                width: 20px;
+                font-size: 0.9rem;
+            }
+            .map-legend .item .swatch {
+                width: 16px;
+                height: 3px;
+            }
+        }
+        @media (min-width: 769px) {
+            /* On large screens, we keep the bottom nav horizontal – it's fine */
+            #bottom-nav {
+                justify-content: center;
+                gap: 4px;
+            }
+            #bottom-nav .nav-item {
+                min-width: 70px;
+            }
+            .view {
+                padding: 24px 32px 20px 32px;
+            }
+        }
+
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #e8edf3;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #90a4ae;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <header id="topbar">
+        <div class="brand">
+            <i class="fas fa-satellite-dish"></i>
+            <span>NEXUS</span>
+            <span style="font-weight:400;font-size:0.6rem;opacity:0.8;margin-left:2px;">· AI</span>
+        </div>
+        <div class="demo-badge">⚡ DEMO / SIMULATION</div>
+        <div class="status-area">
+            <span class="risk-badge" id="topRiskBadge">LOW</span>
+            <span class="last-updated" id="topLastUpdated">T+0</span>
+            <button class="emergency-btn" id="emergencyTopBtn"><i class="fas fa-exclamation-triangle"></i> EMERGENCY</button>
+        </div>
+    </header>
+
+    <div id="app-main">
+
+        <!-- DASHBOARD -->
+        <div class="view active" id="view-dashboard">
+            <div class="card">
+                <div class="card-title"><i class="fas fa-bolt"></i> Current Hazard</div>
+                <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
+                    <span style="font-size:1.6rem;font-weight:700;" id="dashHazard">FLOOD</span>
+                    <span class="tag sim" id="dashDataStatus">SIMULATION</span>
+                    <span style="font-size:0.8rem;color:#546e7a;" id="dashUpdated">T+0</span>
+                </div>
+            </div>
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-chart-pie"></i> Risk Score</div>
+                    <div style="text-align:center;">
+                        <div style="font-size:3rem;font-weight:800;color:#0b1a2e;" id="dashRiskScore">12</div>
+                        <div style="font-size:1rem;font-weight:600;color:#2e7d32;" id="dashRiskLabel">LOW</div>
+                        <div style="font-size:0.7rem;color:#78909c;margin-top:4px;">0 – 100</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-info-circle"></i> Data Status</div>
+                    <div style="font-size:1rem;font-weight:600;" id="dashDataStatus2">SIMULATION</div>
+                    <div style="font-size:0.75rem;color:#546e7a;" id="dashDataDetail">Prototype demo data</div>
+                    <div style="font-size:0.7rem;color:#78909c;margin-top:6px;" id="dashLastUpdate2">T+0</div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title"><i class="fas fa-sliders-h"></i> Quick Status</div>
+                <div class="grid-2">
+                    <div class="stat-box"><span class="label">Rainfall</span><div class="value" id="dashRainfall">LOW</div></div>
+                    <div class="stat-box"><span class="label">Water Level</span><div class="value" id="dashWaterLevel">LOW</div></div>
+                    <div class="stat-box"><span class="label">Drainage</span><div class="value" id="dashDrainage">GOOD</div></div>
+                    <div class="stat-box"><span class="label">Evacuation Window</span><div class="value" style="font-size:1rem;" id="dashEvacWindow">T+30 – T+60</div></div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title"><i class="fas fa-clock"></i> Disaster Timeline</div>
+                <div id="timelineContainer">
+                    <div class="timeline-item"><span class="time">T+0</span><span class="desc">Normal conditions</span><span class="sim-label">SIMULATION</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAP -->
+        <div class="view" id="view-map">
+            <div id="map-container">
+                <div id="map"></div>
+                <div class="map-legend">
+                    <h4>🗺️ Legend</h4>
+                    <div class="item"><span class="symbol">🔴</span><span class="desc">Risk zone</span></div>
+                    <div class="item"><span class="symbol">🏠</span><span class="desc">Shelter</span></div>
+                    <div class="item"><span class="symbol">🏥</span><span class="desc">Hospital</span></div>
+                    <div class="item"><span class="symbol">🔥</span><span class="desc">Fire</span></div>
+                    <div class="item"><span class="symbol">👮</span><span class="desc">Police</span></div>
+                    <div class="item"><span class="swatch" style="background:#2a9d3f;"></span><span class="desc">Rec. route</span></div>
+                    <div class="item"><span class="swatch" style="background:#9b59b6;"></span><span class="desc">Alt. route</span></div>
+                    <div class="item"><span class="swatch" style="background:#c42e2e;"></span><span class="desc">Blocked road</span></div>
+                </div>
+            </div>
+            <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="btn-secondary" id="mapResetView"><i class="fas fa-home"></i> Reset</button>
+                <button class="btn-secondary" id="mapShowShelters"><i class="fas fa-flag"></i> Shelters</button>
+                <button class="btn-secondary" id="mapShowRisk"><i class="fas fa-exclamation-triangle"></i> Risk Zones</button>
+            </div>
+            <div id="mapInfo" style="margin-top:10px;font-size:0.8rem;color:#455a64;background:#fff;border-radius:10px;padding:12px;border:1px solid #e8edf3;">
+                Hover over markers or routes for details.
+            </div>
+        </div>
+
+        <!-- EVACUATION -->
+        <div class="view" id="view-evacuation">
+            <div class="card">
+                <div class="card-title"><i class="fas fa-route"></i> Evacuation Routes</div>
+                <div id="routeResults"></div>
+                <div style="font-size:0.7rem;color:#78909c;margin-top:6px;font-style:italic;">Routes calculated using NEXUS risk model. Not official advice.</div>
+            </div>
+            <div class="card">
+                <div class="card-title"><i class="fas fa-user-friends"></i> Personalize</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                    <div><label style="font-size:0.7rem;font-weight:600;">People</label><input type="number" id="profilePeople" value="2" min="1" max="20" style="width:100%;padding:6px;border-radius:6px;border:1px solid #cfd8e0;"></div>
+                    <div><label style="font-size:0.7rem;font-weight:600;">Vehicle</label><select id="profileVehicle" style="width:100%;padding:6px;border-radius:6px;border:1px solid #cfd8e0;"><option value="yes">Yes</option><option value="no">No</option></select></div>
+                    <div><label style="font-size:0.7rem;font-weight:600;">Children</label><select id="profileChildren" style="width:100%;padding:6px;border-radius:6px;border:1px solid #cfd8e0;"><option value="no">No</option><option value="yes">Yes</option></select></div>
+                    <div><label style="font-size:0.7rem;font-weight:600;">Mobility</label><select id="profileMobility" style="width:100%;padding:6px;border-radius:6px;border:1px solid #cfd8e0;"><option value="none">None</option><option value="limited">Limited</option></select></div>
+                </div>
+                <button class="btn-secondary" style="margin-top:10px;width:100%;" id="updateProfileBtn">Update Recommendations</button>
+            </div>
+        </div>
+
+        <!-- SAFE PLACES -->
+        <div class="view" id="view-safeplaces">
+            <div class="card">
+                <div class="card-title"><i class="fas fa-shield-alt"></i> Safe Places</div>
+                <div id="shelterList"></div>
+                <div style="font-size:0.65rem;color:#78909c;margin-top:8px;">Capacities are simulated. Not real-time data.</div>
+            </div>
+        </div>
+
+        <!-- IMPACT -->
+        <div class="view" id="view-impact">
+            <div class="card">
+                <div class="card-title"><i class="fas fa-chart-bar"></i> Potential Impact Assessment</div>
+                <div id="impactList"></div>
+                <div style="font-size:0.65rem;color:#78909c;margin-top:8px;">These are risk estimates, not guaranteed outcomes.</div>
+            </div>
+        </div>
+
+        <!-- WHAT-IF -->
+        <div class="view" id="view-whatif">
+            <div class="card">
+                <div class="card-title"><i class="fas fa-sliders-h"></i> What-If Simulator</div>
+                <div class="control-group">
+                    <label>Rainfall</label>
+                    <select id="wiRainfall">
+                        <option value="low">LOW</option>
+                        <option value="moderate" selected>MODERATE</option>
+                        <option value="high">HIGH</option>
+                        <option value="extreme">EXTREME</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Water Level</label>
+                    <select id="wiWaterLevel">
+                        <option value="low">LOW</option>
+                        <option value="moderate" selected>MODERATE</option>
+                        <option value="high">HIGH</option>
+                        <option value="critical">CRITICAL</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Drainage Capacity</label>
+                    <select id="wiDrainage">
+                        <option value="good" selected>GOOD</option>
+                        <option value="moderate">MODERATE</option>
+                        <option value="poor">POOR</option>
+                    </select>
+                </div>
+                <button class="btn-primary" style="width:100%;" id="wiApplyBtn"><i class="fas fa-sync-alt"></i> Apply & Recalculate</button>
+                <button class="btn-secondary" style="width:100%;margin-top:8px;" id="wiResetBtn">Reset to Default</button>
+            </div>
+            <div class="card">
+                <div class="card-title"><i class="fas fa-chart-line"></i> Simulated Impact</div>
+                <div id="wiResults">
+                    <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>Risk Score</span><span id="wiRiskScore">12</span></div>
+                    <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>Risk Level</span><span id="wiRiskLevel" style="font-weight:700;color:#2e7d32;">LOW</span></div>
+                    <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>Affected Roads</span><span id="wiAffectedRoads">0</span></div>
+                    <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>Recommended Shelter</span><span id="wiRecShelter">Shelter B</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- NEXUS AI -->
+        <div class="view" id="view-ai">
+            <div class="card">
+                <div class="card-title"><i class="fas fa-robot"></i> NEXUS AI Assistant</div>
+                <div id="ai-chat">
+                    <div class="msg assistant">👋 Hello. I'm NEXUS AI. Ask me about evacuation, routes, shelters, or risks.</div>
+                </div>
+                <div id="ai-input-row">
+                    <input type="text" id="aiInput" placeholder="Ask about the current situation..." />
+                    <button id="aiSendBtn">Send</button>
+                </div>
+                <div style="font-size:0.6rem;color:#78909c;margin-top:6px;">Responses based on current simulation data.</div>
+            </div>
+        </div>
+
+        <!-- EMERGENCY -->
+        <div class="view" id="view-emergency">
+            <div class="card" style="border:2px solid #d32f2f;">
+                <div class="card-title" style="color:#b71c1c;"><i class="fas fa-exclamation-triangle"></i> Emergency Mode</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                    <button class="btn-primary" style="background:#1565c0;" id="emCallPolice"><i class="fas fa-phone"></i> Police</button>
+                    <button class="btn-primary" style="background:#d32f2f;" id="emCallFire"><i class="fas fa-fire"></i> Fire</button>
+                    <button class="btn-primary" style="background:#2e7d32;" id="emCallMedical"><i class="fas fa-ambulance"></i> Medical</button>
+                    <button class="btn-primary" style="background:#f57c00;" id="emNearestHospital"><i class="fas fa-hospital"></i> Hospital</button>
+                </div>
+                <button class="btn-primary" style="width:100%;margin-top:12px;background:#b71c1c;" id="emSOSBtn"><i class="fas fa-sos"></i> SEND SOS</button>
+                <div id="emStatus" style="margin-top:12px;font-size:0.85rem;background:#f0f4fa;padding:12px;border-radius:10px;min-height:50px;">
+                    Emergency services available in demo mode.
+                </div>
+                <div style="font-size:0.65rem;color:#78909c;margin-top:8px;">All calls are simulated. No real emergency services are contacted.</div>
+            </div>
+        </div>
+
+        <!-- DATA & METHODOLOGY -->
+        <div class="view" id="view-methodology">
+            <div class="card">
+                <div class="card-title"><i class="fas fa-database"></i> Data & Methodology</div>
+                <div class="methodology-section">
+                    <h4>What NEXUS uses</h4>
+                    <ul>
+                        <li>Hazard information (simulated)</li>
+                        <li>Geographical data (elevation, water bodies)</li>
+                        <li>Environmental data (rainfall, water level)</li>
+                        <li>Infrastructure data (roads, shelters)</li>
+                        <li>Simulation data for demonstration</li>
+                    </ul>
+                </div>
+                <div class="methodology-section">
+                    <h4>What NEXUS produces</h4>
+                    <ul>
+                        <li>Risk estimates (0–100 score with 5 levels)</li>
+                        <li>Route recommendations (cost-based)</li>
+                        <li>Safe-place rankings</li>
+                        <li>Impact estimates</li>
+                    </ul>
+                </div>
+                <div class="methodology-section">
+                    <h4>Prototype Risk Model</h4>
+                    <ul>
+                        <li>Hazard intensity: 35%</li>
+                        <li>Exposure: 25%</li>
+                        <li>Vulnerability: 20%</li>
+                        <li>Infrastructure: 10%</li>
+                        <li>Historical susceptibility: 10%</li>
+                    </ul>
+                    <p style="font-style:italic;margin-top:4px;">These are prototype assumptions.</p>
+                </div>
+                <div class="methodology-section" style="background:#fce4ec;padding:12px;border-radius:10px;">
+                    <h4 style="color:#b71c1c;">⚠️ Important Limitation</h4>
+                    <p>NEXUS is a prototype decision-support system. It does <strong>not</strong> replace official emergency warnings. All simulated data is clearly labeled.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <nav id="bottom-nav">
+        <button class="nav-item active" data-view="view-dashboard"><i class="fas fa-tachometer-alt"></i><span class="label">Dashboard</span></button>
+        <button class="nav-item" data-view="view-map"><i class="fas fa-map"></i><span class="label">Map</span></button>
+        <button class="nav-item" data-view="view-evacuation"><i class="fas fa-route"></i><span class="label">Evacuation</span></button>
+        <button class="nav-item" data-view="view-safeplaces"><i class="fas fa-shield-alt"></i><span class="label">Safe Places</span></button>
+        <button class="nav-item" data-view="view-impact"><i class="fas fa-chart-bar"></i><span class="label">Impact</span></button>
+        <button class="nav-item" data-view="view-whatif"><i class="fas fa-sliders-h"></i><span class="label">What-If</span></button>
+        <button class="nav-item" data-view="view-ai"><i class="fas fa-robot"></i><span class="label">NEXUS AI</span></button>
+        <button class="nav-item" data-view="view-emergency"><i class="fas fa-exclamation-triangle"></i><span class="label">Emergency</span></button>
+        <button class="nav-item" data-view="view-methodology"><i class="fas fa-info-circle"></i><span class="label">Data</span></button>
+    </nav>
+
+    <div id="emergency-modal">
+        <div class="modal-content">
+            <div class="modal-title"><i class="fas fa-exclamation-triangle"></i> EMERGENCY</div>
+            <p style="font-size:0.85rem;color:#455a64;">Simulated emergency assistance. No real calls are placed.</p>
+            <div class="emergency-grid">
+                <button id="modalPolice"><i class="fas fa-shield-alt"></i> Police</button>
+                <button id="modalFire"><i class="fas fa-fire"></i> Fire</button>
+                <button id="modalMedical"><i class="fas fa-ambulance"></i> Medical</button>
+                <button id="modalHospital"><i class="fas fa-hospital"></i> Hospital</button>
+            </div>
+            <div class="sos-section">
+                <button id="modalSOS"><i class="fas fa-sos"></i> SEND SOS (Demo)</button>
+                <div style="font-size:0.7rem;color:#78909c;margin-top:6px;">SOS message will be prepared with location and risk data.</div>
+            </div>
+            <button class="close-modal" id="modalClose">Close</button>
+        </div>
+    </div>
+
+    <script>
+        // =============================================================
+        // NEXUS – Full App Logic (same as before)
+        // =============================================================
+        (function() {
+            'use strict';
+
+            const state = {
+                hazard: 'FLOOD',
+                riskScore: 12,
+                riskLevel: 'LOW',
+                dataStatus: 'SIMULATION',
+                simulationTime: 0,
+                rainfall: 'moderate',
+                waterLevel: 'moderate',
+                drainage: 'good',
+                profile: { people: 2, vehicle: 'yes', children: 'no', mobility: 'none' },
+                shelters: [],
+                roads: [],
+                timeline: [
+                    { time: 0, desc: 'Normal conditions' },
+                    { time: 30, desc: 'Hazard detected' },
+                    { time: 60, desc: 'Risk increasing' },
+                    { time: 90, desc: 'Several roads affected' },
+                    { time: 120, desc: 'Evacuation recommended' }
+                ],
+                map: null,
+                routeLayers: [],
+                blockedRoadLayers: [],
+                riskPolygons: [],
+                markerLayers: [],
+                _routes: {
+                    recommended: { id: 'A', destination: 'Shelter B', distance: '2.8 km', duration: '9 min',
+                        risk: 'MODERATE', hazardExposure: 0.25, blocked: false, factors: ['Lower flood exposure'] },
+                    alternative: { id: 'B', destination: 'Shelter A', distance: '1.6 km', duration: '5 min',
+                        risk: 'HIGH', hazardExposure: 0.7, blocked: false, factors: ['Higher flood exposure'] }
+                },
+                _rankedShelters: [],
+                impact: { property: 'LOW', roadDisruption: 'LOW', power: 'LOW', water: 'LOW', infrastructure: 'LOW',
+                    medical: 'LOW' },
+                mapInitialized: false,
+                initialFitDone: false
+            };
+
+            const CENTER = { lat: 22.356, lng: 91.783 };
+            const CITY_DATA = {
+                center: CENTER,
+                zoom: 14,
+                riskZones: [
+                    { id: 'zone1', coords: [{ lat: 22.355, lng: 91.790 }, { lat: 22.365, lng: 91.785 }, { lat: 22.355,
+                            lng: 91.775 }, { lat: 22.345, lng: 91.780 }], label: 'Moderate Risk (Riverfront)',
+                        baseRisk: 0.6 },
+                    { id: 'zone2', coords: [{ lat: 22.345, lng: 91.775 }, { lat: 22.350, lng: 91.765 }, { lat: 22.340,
+                            lng: 91.760 }, { lat: 22.335, lng: 91.770 }], label: 'HIGH RISK (Halishahar)',
+                        baseRisk: 0.9 },
+                    { id: 'zone3', coords: [{ lat: 22.370, lng: 91.800 }, { lat: 22.375, lng: 91.795 }, { lat: 22.365,
+                            lng: 91.790 }, { lat: 22.360, lng: 91.795 }], label: 'Low Risk (Hillside)',
+                    baseRisk: 0.15 }
+                ],
+                pois: [
+                    { id: 'shelterA', type: 'shelter', name: 'Shelter A (Halishahar)', coords: { lat: 22.365,
+                        lng: 91.780 }, capacity: 120, exposure: 0.85, emoji: '🏠' },
+                    { id: 'shelterB', type: 'shelter', name: 'Shelter B (Agrabad)', coords: { lat: 22.350, lng: 91.795 },
+                        capacity: 200, exposure: 0.2, emoji: '🏠' },
+                    { id: 'shelterC', type: 'shelter', name: 'Shelter C (Patenga)', coords: { lat: 22.335, lng: 91.770 },
+                        capacity: 80, exposure: 0.5, emoji: '🏠' },
+                    { id: 'hospital', type: 'hospital', name: 'Chittagong Medical', coords: { lat: 22.360, lng: 91.770 },
+                        capacity: 60, exposure: 0.4, emoji: '🏥' },
+                    { id: 'firestation', type: 'fire', name: 'Fire Service', coords: { lat: 22.370, lng: 91.790 },
+                        capacity: 0, exposure: 0.3, emoji: '🔥' },
+                    { id: 'policestation', type: 'police', name: 'Police Station', coords: { lat: 22.345, lng: 91.785 },
+                        capacity: 0, exposure: 0.3, emoji: '👮' }
+                ],
+                roads: [
+                    { id: 'r1', name: 'Main St', coords: [{ lat: 22.375, lng: 91.790 }, { lat: 22.365, lng: 91.785 },
+                        { lat: 22.355, lng: 91.780 }], blocked: false },
+                    { id: 'r2', name: 'Bridge Rd', coords: [{ lat: 22.370, lng: 91.780 }, { lat: 22.360, lng: 91.775 },
+                        { lat: 22.350, lng: 91.770 }], blocked: false },
+                    { id: 'r3', name: 'River Rd', coords: [{ lat: 22.365, lng: 91.795 }, { lat: 22.355, lng: 91.790 },
+                        { lat: 22.345, lng: 91.785 }], blocked: false }
+                ]
+            };
+
+            function getRiskLevel(s) { if (s < 20) return 'LOW'; if (s < 40) return 'MODERATE'; if (s < 60) return 'ELEVATED';
+                if (s < 80) return 'HIGH'; return 'CRITICAL'; }
+
+            function getRiskColor(l) { return { LOW: '#2e7d32', MODERATE: '#f9a825', ELEVATED: '#f57c00', HIGH: '#d84315',
+                    CRITICAL: '#b71c1c' } [l] || '#78909c'; }
+
+            function computeRiskScore(rain, water, drain, profile) {
+                const r = { low: .1, moderate: .35, high: .65, extreme: .9 } [rain] || .3;
+                const w = { low: .05, moderate: .3, high: .6, critical: .85 } [water] || .3;
+                const d = { good: .1, moderate: .4, poor: .75 } [drain] || .3;
+                let e = .3;
+                const p = profile.people || 2;
+                if (p > 5) e += .2;
+                if (p > 10) e += .15;
+                if (profile.vehicle === 'no') e += .15;
+                if (profile.children === 'yes') e += .1;
+                if (profile.mobility === 'limited') e += .15;
+                e = Math.min(e, .9);
+                const v = (w + d) / 2;
+                return Math.round(Math.max(0, Math.min(100, (r * .35 + e * .25 + v * .2 + d * .1 + r * .1) * 100)));
+            }
+
+            function rankShelters(shelters, riskScore) {
+                return shelters.map(s => {
+                    let score = (1 - s.exposure) * 40 + Math.min(s.capacity / 150, 1) * 20;
+                    let dist = Math.abs(s.coords.lat - CENTER.lat) + Math.abs(s.coords.lng - CENTER.lng);
+                    score += Math.max(0, 1 - dist * 10) * 20;
+                    if (s.type === 'shelter') score += 10;
+                    else if (s.type === 'hospital') score += 5;
+                    if (riskScore > 60) score -= s.exposure * 15;
+                    return { ...s, rankScore: Math.round(score) };
+                }).sort((a, b) => b.rankScore - a.rankScore);
+            }
+
+            function computeImpact(score, rain, water) {
+                const lv = v => { if (v < 20) return 'LOW'; if (v < 40) return 'MODERATE'; if (v < 60) return 'ELEVATED';
+                    if (v < 80) return 'HIGH'; return 'CRITICAL'; };
+                const rf = { low: .5, moderate: 1, high: 1.5, extreme: 2 } [rain] || 1;
+                const wf = { low: .5, moderate: 1, high: 1.5, critical: 2 } [water] || 1;
+                return {
+                    property: lv(score * .9 * rf),
+                    roadDisruption: lv(score * .8 * wf),
+                    power: lv(score * .6 * rf),
+                    water: lv(score * .5 * wf),
+                    infrastructure: lv(score * .85 * rf),
+                    medical: lv(score * .7 * wf)
+                };
+            }
+
+            function runSimulation() {
+                const score = computeRiskScore(state.rainfall, state.waterLevel, state.drainage, state.profile);
+                state.riskScore = score;
+                state.riskLevel = getRiskLevel(score);
+                state.impact = computeImpact(score, state.rainfall, state.waterLevel);
+
+                state.roads.forEach(r => {
+                    if (r.id === 'r3' && score > 55) r.blocked = true;
+                    else if (r.id === 'r2' && score > 70) r.blocked = true;
+                    else if (r.id === 'r1' && score > 80) r.blocked = true;
+                    else if (score < 40) r.blocked = false;
+                });
+
+                state.shelters.forEach(s => {
+                    if (s.id === 'shelterA') s.exposure = Math.min(.9, .85 + score / 200);
+                    else if (s.id === 'shelterB') s.exposure = Math.min(.6, .2 + score / 300);
+                    else if (s.id === 'shelterC') s.exposure = Math.min(.8, .5 + score / 250);
+                });
+
+                state._rankedShelters = rankShelters(state.shelters, score);
+                if (state._rankedShelters.length >= 2) {
+                    const t = state._rankedShelters[0],
+                        sec = state._rankedShelters[1];
+                    state._routes.recommended.destination = t.name;
+                    state._routes.recommended.risk = state.riskLevel;
+                    state._routes.recommended.hazardExposure = t.exposure;
+                    state._routes.alternative.destination = sec.name;
+                    state._routes.alternative.risk = state.riskLevel;
+                    state._routes.alternative.hazardExposure = sec.exposure;
+                }
+
+                if (score > 60 && !state.timeline.some(e => e.desc.includes('Evacuation recommended'))) {
+                    state.timeline.push({ time: state.simulationTime, desc: 'Evacuation recommended' });
+                }
+                state.timeline.sort((a, b) => a.time - b.time);
+
+                updateUI();
+                updateShelterList();
+                updateImpact();
+                updateWhatIf();
+                updateRoutes();
+
+                if (state.map) {
+                    updateMapLayers();
+                    fetchRoutes(false);
+                }
+            }
+
+            function fetchRoutes(fitBounds) {
+                const ranked = state._rankedShelters || [];
+                if (ranked.length < 2) return;
+
+                const origin = `${CENTER.lng},${CENTER.lat}`;
+                const dest1 = `${ranked[0].coords.lng},${ranked[0].coords.lat}`;
+                const dest2 = `${ranked[1].coords.lng},${ranked[1].coords.lat}`;
+
+                state.routeLayers.forEach(l => state.map.removeLayer(l));
+                state.routeLayers = [];
+
+                const map = state.map;
+
+                function createRoutePolyline(coords, color, weight, popupText) {
+                    const pl = L.polyline(coords, { color, weight, opacity: 0.8 }).addTo(map);
+                    pl.bindPopup(popupText);
+                    pl.on('mouseover', function() { this.openPopup(); });
+                    pl.on('mouseout', function() { this.closePopup(); });
+                    return pl;
+                }
+
+                const url1 =
+                    `https://router.project-osrm.org/route/v1/driving/${origin};${dest1}?overview=full&geometries=geojson`;
+                const url2 =
+                    `https://router.project-osrm.org/route/v1/driving/${origin};${dest2}?overview=full&geometries=geojson`;
+
+                Promise.all([
+                    fetch(url1).then(r => r.json()).catch(() => null),
+                    fetch(url2).then(r => r.json()).catch(() => null)
+                ]).then(([data1, data2]) => {
+                    if (data1 && data1.code === 'Ok' && data1.routes.length > 0) {
+                        const coords = data1.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+                        const pl = createRoutePolyline(coords, '#2a9d3f', 5, '✅ Recommended route to ' + ranked[0]
+                        .name);
+                        state.routeLayers.push(pl);
+                        const leg = data1.routes[0].legs[0];
+                        state._routes.recommended.distance = (leg.distance / 1000).toFixed(1) + ' km';
+                        state._routes.recommended.duration = Math.round(leg.duration / 60) + ' min';
+                    } else {
+                        const start = [CENTER.lat, CENTER.lng];
+                        const end = [ranked[0].coords.lat, ranked[0].coords.lng];
+                        const pl = createRoutePolyline([start, end], '#2a9d3f', 5, '✅ Recommended route to ' + ranked[0]
+                            .name);
+                        state.routeLayers.push(pl);
+                    }
+                    if (data2 && data2.code === 'Ok' && data2.routes.length > 0) {
+                        const coords = data2.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+                        const pl = createRoutePolyline(coords, '#9b59b6', 4, '⚠️ Alternative route to ' + ranked[1]
+                        .name);
+                        state.routeLayers.push(pl);
+                        const leg = data2.routes[0].legs[0];
+                        state._routes.alternative.distance = (leg.distance / 1000).toFixed(1) + ' km';
+                        state._routes.alternative.duration = Math.round(leg.duration / 60) + ' min';
+                    } else {
+                        const start = [CENTER.lat, CENTER.lng];
+                        const end = [ranked[1].coords.lat, ranked[1].coords.lng];
+                        const pl = createRoutePolyline([start, end], '#9b59b6', 4, '⚠️ Alternative route to ' + ranked[1]
+                            .name);
+                        state.routeLayers.push(pl);
+                    }
+                    updateRoutes();
+
+                    if (fitBounds && !state.initialFitDone && state.routeLayers.length > 0) {
+                        const bounds = L.latLngBounds();
+                        state.routeLayers.forEach(layer => {
+                            try { layer.getLatLngs().forEach(p => bounds.extend(p)); } catch (e) {}
+                        });
+                        if (bounds.isValid()) {
+                            map.fitBounds(bounds, { padding: [50, 50] });
+                            state.initialFitDone = true;
+                        }
+                    }
+                });
+            }
+
+            function updateMapLayers() {
+                const map = state.map;
+                if (!map) return;
+
+                state.riskPolygons.forEach(l => map.removeLayer(l));
+                state.riskPolygons = [];
+                state.blockedRoadLayers.forEach(l => map.removeLayer(l));
+                state.blockedRoadLayers = [];
+                state.markerLayers.forEach(l => map.removeLayer(l));
+                state.markerLayers = [];
+
+                const riskColor = getRiskColor(state.riskLevel);
+
+                CITY_DATA.riskZones.forEach(z => {
+                    const coords = z.coords.map(c => [c.lat, c.lng]);
+                    const opacity = 0.2 + z.baseRisk * 0.6;
+                    const poly = L.polygon(coords, { color: riskColor, weight: 2, fillColor: riskColor,
+                        fillOpacity: opacity }).addTo(map);
+                    poly.bindPopup(`<strong>${z.label}</strong><br>Risk: ${state.riskLevel} (${state.riskScore})`);
+                    state.riskPolygons.push(poly);
+                });
+
+                state.roads.forEach(r => {
+                    if (r.blocked) {
+                        const coords = r.coords.map(c => [c.lat, c.lng]);
+                        const pl = L.polyline(coords, { color: '#c42e2e', weight: 4, opacity: 0.9, dashArray: '10,6' })
+                            .addTo(map);
+                        pl.bindPopup(`🚧 ${r.name} is BLOCKED`);
+                        state.blockedRoadLayers.push(pl);
+                        const mid = coords[Math.floor(coords.length / 2)];
+                        const m = L.marker(mid, { icon: L.divIcon({ html: '🚧 BLOCKED', className: 'blocked-label',
+                                iconSize: [80, 20], iconAnchor: [40, 10] }) }).addTo(map);
+                        state.blockedRoadLayers.push(m);
+                    }
+                });
+
+                CITY_DATA.pois.forEach(p => {
+                    const icon = L.divIcon({ html: `<span style="font-size:32px;">${p.emoji}</span>`,
+                        className: 'emoji-marker', iconSize: [32, 32], iconAnchor: [16, 16] });
+                    const m = L.marker([p.coords.lat, p.coords.lng], { icon }).addTo(map);
+                    const isRec = state._rankedShelters && state._rankedShelters[0] && state._rankedShelters[0]
+                        .id === p.id;
+                    m.bindPopup(
+                        `<strong>${p.name}</strong>${isRec ? ' ⭐ RECOMMENDED' : ''}<br>Type: ${p.type}<br>Capacity: ${p.capacity || 'N/A'} (sim)<br>Exposure: ${Math.round(p.exposure*100)}%<br>Risk: ${state.riskLevel}`
+                        );
+                    m.on('mouseover', function() { this.openPopup(); });
+                    m.on('mouseout', function() { this.closePopup(); });
+                    state.markerLayers.push(m);
+                });
+            }
+
+            function updateUI() {
+                const s = state.riskScore,
+                    l = state.riskLevel,
+                    c = getRiskColor(l);
+                const b = document.getElementById('topRiskBadge');
+                b.textContent = l;
+                b.className = 'risk-badge ' + l.toLowerCase();
+                b.style.background = c;
+                document.getElementById('topLastUpdated').textContent = 'T+' + state.simulationTime + ' min';
+                document.getElementById('dashHazard').textContent = state.hazard;
+                document.getElementById('dashDataStatus').textContent = state.dataStatus;
+                document.getElementById('dashUpdated').textContent = 'T+' + state.simulationTime;
+                document.getElementById('dashRiskScore').textContent = s;
+                const rl = document.getElementById('dashRiskLabel');
+                rl.textContent = l;
+                rl.style.color = c;
+                document.getElementById('dashDataStatus2').textContent = state.dataStatus;
+                document.getElementById('dashDataDetail').textContent = 'Prototype demo data';
+                document.getElementById('dashLastUpdate2').textContent = 'T+' + state.simulationTime;
+                document.getElementById('dashRainfall').textContent = state.rainfall.toUpperCase();
+                document.getElementById('dashWaterLevel').textContent = state.waterLevel.toUpperCase();
+                document.getElementById('dashDrainage').textContent = state.drainage.toUpperCase();
+                let w = 'T+30 – T+60';
+                if (s > 60) w = 'T+15 – T+45';
+                if (s > 80) w = 'IMMEDIATE';
+                document.getElementById('dashEvacWindow').textContent = w;
+                document.getElementById('timelineContainer').innerHTML = state.timeline.map(e =>
+                    `<div class="timeline-item"><span class="time">T+${e.time}</span><span class="desc">${e.desc}</span><span class="sim-label">SIMULATION</span></div>`
+                ).join('');
+            }
+
+            function updateShelterList() {
+                const c = document.getElementById('shelterList'),
+                    ranked = state._rankedShelters || [];
+                if (!ranked.length) { c.innerHTML = '<div style="color:#78909c;">No shelter data available.</div>'; return; }
+                c.innerHTML = ranked.map((s, i) => {
+                    const isRec = i === 0;
+                    const d = (Math.abs(s.coords.lat - CENTER.lat) + Math.abs(s.coords.lng - CENTER.lng)).toFixed(
+                    2);
+                    return `<div class="shelter-item"><div class="info"><div class="name">${s.name}${isRec ? ' ⭐' : ''}</div><div class="detail">${s.type} · ${d} km · Cap: ${s.capacity} (sim) · Exposure: ${Math.round(s.exposure*100)}%</div></div><span class="badge ${isRec ? 'recommended' : ''}">${isRec ? 'RECOMMENDED' : 'Available'}</span></div>`;
+                }).join('');
+            }
+
+            function updateRoutes() {
+                const c = document.getElementById('routeResults'),
+                    rec = state._routes;
+                if (!rec) { c.innerHTML = '<div style="color:#78909c;">Calculating routes...</div>'; return; }
+                const rA = rec.recommended,
+                    rB = rec.alternative;
+                const render = (r, isRec) => {
+                    const rc = getRiskColor(r.risk);
+                    const bt = r.blocked ? ' ⚠️ BLOCKED' : '';
+                    return `<div class="route-card ${isRec ? 'recommended' : ''}"><div class="route-title"><span>${isRec ? '✅' : ''} Route ${r.id} · ${r.destination}${bt}</span><span style="font-size:.7rem;color:${rc};font-weight:600;">${r.risk}</span></div><div class="route-meta"><span>${r.distance}</span><span>${r.duration}</span><span>Exposure: ${Math.round(r.hazardExposure*100)}%</span></div><div style="font-size:.7rem;color:#455a64;margin-top:4px;">${r.factors ? r.factors.join(' · ') : ''}</div><button class="why-btn" data-route="${r.id}">WHY?</button></div>`;
+                };
+                c.innerHTML = render(rA, true) + render(rB, false);
+                c.querySelectorAll('.why-btn').forEach(b => {
+                    b.addEventListener('click', function() {
+                        const id = this.dataset.route;
+                        const r = id === 'A' ? rA : rB;
+                        alert(id === 'A' ?
+                            `✅ Route ${id} recommended:\n• ${r.factors ? r.factors.join('\n• ') : 'Lower flood exposure'}\n• Destination: ${r.destination}\n• Risk: ${r.risk}` :
+                            `⚠️ Route ${id} not recommended:\n• ${r.factors ? r.factors.join('\n• ') : 'Higher flood exposure'}\n• Destination: ${r.destination}\n• Risk: ${r.risk}`
+                            );
+                    });
+                });
+            }
+
+            function updateImpact() {
+                const imp = state.impact,
+                    c = document.getElementById('impactList');
+                const items = [{ label: 'Property Exposure', key: 'property' }, { label: 'Road Disruption',
+                        key: 'roadDisruption' }, { label: 'Power Disruption', key: 'power' },
+                    { label: 'Water Service', key: 'water' }, { label: 'Infrastructure', key: 'infrastructure' },
+                    { label: 'Medical Accessibility', key: 'medical' }
+                ];
+                c.innerHTML = items.map(i => {
+                    const v = imp[i.key] || 'LOW';
+                    return `<div class="impact-row"><span class="label">${i.label}</span><span class="level ${v.toLowerCase()}">${v}</span></div>`;
+                }).join('');
+            }
+
+            function updateWhatIf() {
+                document.getElementById('wiRiskScore').textContent = state.riskScore;
+                const el = document.getElementById('wiRiskLevel');
+                el.textContent = state.riskLevel;
+                el.style.color = getRiskColor(state.riskLevel);
+                document.getElementById('wiAffectedRoads').textContent = state.roads.filter(r => r.blocked).length;
+                document.getElementById('wiRecShelter').textContent = (state._rankedShelters && state._rankedShelters[0] ?
+                    state._rankedShelters[0].name : 'Unknown');
+            }
+
+            function aiRespond(query) {
+                const q = query.toLowerCase(),
+                    score = state.riskScore,
+                    l = state.riskLevel,
+                    ranked = state._rankedShelters || [],
+                    top = ranked[0] || null,
+                    rec = state._routes;
+                let r = '';
+                if (q.includes('evacuate') || q.includes('where should i go') || q.includes('where to go')) {
+                    if (top) { r =
+                            `Based on current simulation, evacuate to **${top.name}**. Exposure: ${Math.round(top.exposure*100)}%. Risk: **${l}** (${score}/100).`; } else { r =
+                            `Risk: **${l}** (${score}/100). Head to a designated shelter.`; }
+                    r += ' This recommendation is based on simulation data.';
+                } else if (q.includes('route') || q.includes('which route') || q.includes('safer') || q.includes('alt')) {
+                    if (rec) {
+                        const best = rec.recommended,
+                            alt = rec.alternative;
+                        r =
+                            `**Recommended**: ${best.id} → ${best.destination} (${best.risk}, ${Math.round(best.hazardExposure*100)}% exposure).\n**Alternative**: ${alt.id} → ${alt.destination} (${alt.risk}, ${Math.round(alt.hazardExposure*100)}% exposure).${q.includes('alt') ? ' The alternative goes through higher-risk area.' : ''}`;
+                    } else { r = `Route A to Shelter B recommended. Lower flood exposure. Risk: **${l}**.`; }
+                } else if (q.includes('shelter') || q.includes('safe place') || q.includes('where is safe')) {
+                    if (top) { r =
+                            `${top.name} is top-ranked. Exposure: ${Math.round(top.exposure*100)}%, capacity: ${top.capacity} (sim). Balances distance, accessibility, lower risk.`; } else { r =
+                            `Shelter B recommended. Lower flood exposure. Risk: **${l}**.`; }
+                    r += ' Capacities are simulated.';
+                } else if (q.includes('risk') || q.includes('dangerous') || q.includes('how bad')) {
+                    r =
+                        `Risk score: **${score}/100** → **${l}**. Rainfall: ${state.rainfall}, water level: ${state.waterLevel}, drainage: ${state.drainage}.${score > 60 ? ' Risk elevated — consider evacuation.' : ' Risk moderate — stay informed.'}`;
+                } else if (q.includes('impact') || q.includes('damage') || q.includes('affected')) {
+                    const imp = state.impact;
+                    r =
+                        `Estimated impacts:\n- Property: ${imp.property}\n- Roads: ${imp.roadDisruption}\n- Power: ${imp.power}\n- Water: ${imp.water}\n- Infrastructure: ${imp.infrastructure}\n- Medical: ${imp.medical}\nThese are risk estimates.`;
+                } else if (q.includes('what should i do') || q.includes('next') || q.includes('action')) {
+                    if (score > 60) { r =
+                            `Evacuation recommended. Head to ${top ? top.name : 'Shelter B'} via recommended route. Avoid flooded roads. Risk: **${l}**.`; } else { r =
+                            `Stay informed. Risk: **${l}**. Prepare evacuation plan. Keep supplies ready.`; }
+                    r += ' Follow official instructions.';
+                } else {
+                    r =
+                        `Current simulation: Risk **${l}** (${score}/100). Rainfall: ${state.rainfall}, water level: ${state.waterLevel}, drainage: ${state.drainage}. ${top ? 'Top shelter: ' + top.name + '.' : ''} Ask about evacuation, routes, shelters, risks, impacts.`;
+                }
+                r += ' ⚠️ Based on simulation. Not official advice.';
+                return r;
+            }
+
+            function handleSOS() {
+                const msg =
+                    `🚨 SOS MESSAGE PREPARED — DEMO ONLY\nLocation: Chattogram (${CENTER.lat}, ${CENTER.lng})\nRisk: ${state.riskLevel} (${state.riskScore}/100)\nHazard: ${state.hazard}\nShelter: ${state._rankedShelters && state._rankedShelters[0] ? state._rankedShelters[0].name : 'Unknown'}\nTime: ${new Date().toLocaleString()}\n\n⚠️ SIMULATED SOS. No real emergency services contacted.`;
+                document.getElementById('emStatus').innerHTML =
+                    `<div style="background:#e8f5e9;padding:12px;border-radius:8px;border-left:4px solid #2e7d32;"><strong>✅ SOS MESSAGE PREPARED — DEMO ONLY</strong><br><pre style="font-size:.75rem;white-space:pre-wrap;margin-top:6px;font-family:inherit;">${msg}</pre></div>`;
+                alert('📱 SOS MESSAGE PREPARED — DEMO ONLY\n\n' + msg);
+            }
+
+            function navTo(id) {
+                document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+                document.getElementById(id).classList.add('active');
+                document.querySelectorAll('#bottom-nav .nav-item').forEach(n => n.classList.remove('active'));
+                document.querySelector(`#bottom-nav .nav-item[data-view="${id}"]`)?.classList.add('active');
+                if (id === 'view-map' && state.map) {
+                    setTimeout(() => state.map.invalidateSize(), 150);
+                }
+            }
+
+            function initMap() {
+                if (state.mapInitialized) return;
+                state.mapInitialized = true;
+                const map = L.map('map').setView([CENTER.lat, CENTER.lng], CITY_DATA.zoom);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19,
+                    attribution: '© OpenStreetMap' }).addTo(map);
+                state.map = map;
+                updateMapLayers();
+                map.on('click', function(e) {
+                    document.getElementById('mapInfo').innerHTML =
+                        `📍 Selected: ${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)} · Risk: ${state.riskScore} (${state.riskLevel})`;
+                });
+                fetchRoutes(true);
+            }
+
+            function init() {
+                state.shelters = CITY_DATA.pois.map(p => ({ ...p }));
+                state.roads = CITY_DATA.roads.map(r => ({ ...r, coords: r.coords.map(c => ({ ...c })), blocked: false }));
+                runSimulation();
+
+                document.querySelectorAll('#bottom-nav .nav-item').forEach(b => {
+                    b.addEventListener('click', function() { navTo(this.dataset.view); });
+                });
+
+                document.getElementById('wiApplyBtn').addEventListener('click', function() {
+                    state.rainfall = document.getElementById('wiRainfall').value;
+                    state.waterLevel = document.getElementById('wiWaterLevel').value;
+                    state.drainage = document.getElementById('wiDrainage').value;
+                    state.simulationTime += 10;
+                    runSimulation();
+                    const b = this,
+                        o = b.innerHTML;
+                    b.innerHTML = '✅ Applied!';
+                    setTimeout(() => b.innerHTML = o, 1200);
+                });
+                document.getElementById('wiResetBtn').addEventListener('click', function() {
+                    document.getElementById('wiRainfall').value = 'moderate';
+                    document.getElementById('wiWaterLevel').value = 'moderate';
+                    document.getElementById('wiDrainage').value = 'good';
+                    state.rainfall = 'moderate';
+                    state.waterLevel = 'moderate';
+                    state.drainage = 'good';
+                    state.simulationTime = 0;
+                    state.roads.forEach(r => r.blocked = false);
+                    runSimulation();
+                });
+
+                document.getElementById('updateProfileBtn').addEventListener('click', function() {
+                    state.profile.people = parseInt(document.getElementById('profilePeople').value) || 2;
+                    state.profile.vehicle = document.getElementById('profileVehicle').value;
+                    state.profile.children = document.getElementById('profileChildren').value;
+                    state.profile.mobility = document.getElementById('profileMobility').value;
+                    runSimulation();
+                    const b = this,
+                        o = b.innerHTML;
+                    b.innerHTML = '✅ Updated';
+                    setTimeout(() => b.innerHTML = o, 1000);
+                });
+
+                document.getElementById('aiSendBtn').addEventListener('click', function() {
+                    const inp = document.getElementById('aiInput'),
+                        q = inp.value.trim();
+                    if (!q) return;
+                    const chat = document.getElementById('ai-chat');
+                    chat.innerHTML += `<div class="msg user">${q}</div>`;
+                    const r = aiRespond(q);
+                    chat.innerHTML += `<div class="msg assistant">${r}</div>`;
+                    chat.scrollTop = chat.scrollHeight;
+                    inp.value = '';
+                });
+                document.getElementById('aiInput').addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') document.getElementById('aiSendBtn').click();
+                });
+
+                document.getElementById('emergencyTopBtn').addEventListener('click', function() { document
+                        .getElementById('emergency-modal').classList.add('open'); });
+                document.getElementById('modalClose').addEventListener('click', function() { document
+                        .getElementById('emergency-modal').classList.remove('open'); });
+                document.getElementById('emergency-modal').addEventListener('click', function(e) {
+                    if (e.target === this) this.classList.remove('open');
+                });
+                document.getElementById('modalPolice').addEventListener('click', function() { document
+                        .getElementById('emStatus').innerHTML = '👮 SIMULATED CALL: Police.';
+                    document.getElementById('emergency-modal').classList.remove('open'); });
+                document.getElementById('modalFire').addEventListener('click', function() { document
+                        .getElementById('emStatus').innerHTML = '🔥 SIMULATED CALL: Fire.';
+                    document.getElementById('emergency-modal').classList.remove('open'); });
+                document.getElementById('modalMedical').addEventListener('click', function() { document
+                        .getElementById('emStatus').innerHTML = '🚑 SIMULATED CALL: Medical.';
+                    document.getElementById('emergency-modal').classList.remove('open'); });
+                document.getElementById('modalHospital').addEventListener('click', function() { document
+                        .getElementById('emStatus').innerHTML = '🏥 Nearest: Chittagong Medical (Demo)';
+                    document.getElementById('emergency-modal').classList.remove('open'); });
+                document.getElementById('modalSOS').addEventListener('click', function() { handleSOS();
+                    document.getElementById('emergency-modal').classList.remove('open'); });
+
+                document.getElementById('emCallPolice').addEventListener('click', function() { document
+                        .getElementById('emStatus').innerHTML = '👮 SIMULATED CALL: Police.'; });
+                document.getElementById('emCallFire').addEventListener('click', function() { document
+                        .getElementById('emStatus').innerHTML = '🔥 SIMULATED CALL: Fire.'; });
+                document.getElementById('emCallMedical').addEventListener('click', function() { document
+                        .getElementById('emStatus').innerHTML = '🚑 SIMULATED CALL: Medical.'; });
+                document.getElementById('emNearestHospital').addEventListener('click', function() { document
+                        .getElementById('emStatus').innerHTML = '🏥 Nearest: Chittagong Medical (Demo)'; });
+                document.getElementById('emSOSBtn').addEventListener('click', handleSOS);
+
+                document.getElementById('mapResetView').addEventListener('click', function() {
+                    if (state.map) state.map.setView([CENTER.lat, CENTER.lng], CITY_DATA.zoom);
+                });
+                document.getElementById('mapShowShelters').addEventListener('click', function() {
+                    if (state.map) {
+                        const b = L.latLngBounds(CITY_DATA.pois.map(p => [p.coords.lat, p.coords.lng]));
+                        state.map.fitBounds(b);
+                    }
+                });
+                document.getElementById('mapShowRisk').addEventListener('click', function() {
+                    if (state.map) {
+                        const b = L.latLngBounds();
+                        CITY_DATA.riskZones.forEach(z => z.coords.forEach(c => b.extend([c.lat, c.lng])));
+                        state.map.fitBounds(b);
+                    }
+                });
+
+                let step = 0;
+                setInterval(() => {
+                    if (step > 5) return;
+                    const steps = [
+                        () => { state.rainfall = 'moderate';
+                            state.waterLevel = 'moderate';
+                            state.simulationTime = 0; },
+                        () => { state.rainfall = 'high';
+                            state.simulationTime = 30; },
+                        () => { state.waterLevel = 'high';
+                            state.simulationTime = 60; },
+                        () => { state.rainfall = 'extreme';
+                            state.simulationTime = 90; },
+                        () => { state.waterLevel = 'critical';
+                            state.simulationTime = 120; },
+                        () => { state.rainfall = 'moderate';
+                            state.waterLevel = 'moderate';
+                            state.simulationTime = 0;
+                            state.roads.forEach(r => r.blocked = false);
+                            step = -1; }
+                    ];
+                    if (step >= 0 && step < steps.length) {
+                        steps[step]();
+                        runSimulation();
+                        document.getElementById('wiRainfall').value = state.rainfall;
+                        document.getElementById('wiWaterLevel').value = state.waterLevel;
+                        const chat = document.getElementById('ai-chat');
+                        const msgs = ['🔄 Normal conditions.', '🌧️ Rainfall HIGH.', '💧 Water level HIGH.',
+                            '⚠️ Rainfall EXTREME.', '🚨 Water level CRITICAL.', '🔄 Reset.'
+                        ];
+                        if (step < msgs.length) {
+                            chat.innerHTML +=
+                                `<div class="msg assistant" style="background:#e65100;color:#fff;">${msgs[step]}</div>`;
+                            chat.scrollTop = chat.scrollHeight;
+                        }
+                        step++;
+                    }
+                }, 6000);
+
+                navTo('view-dashboard');
+                console.log('🚀 NEXUS ready.');
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function() { initMap();
+                    init(); });
+            } else { initMap();
+                init(); }
+        })();
+    </script>
+</body>
+</html>
