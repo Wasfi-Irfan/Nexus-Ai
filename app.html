@@ -771,6 +771,63 @@
             background: #90a4ae;
             border-radius: 4px;
         }
+        /* Universal viewport reset to handle cross-browser layout filling */
+html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 100vh !important;
+    overflow-x: hidden;
+    background-color: #0b0f19; /* Seamless background integration */
+}
+
+/* Force container wrapper to expand 100% horizontally */
+.app-container, #root, main, body > div:first-of-type {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 100% !important;
+    height: auto !important;
+    min-height: 100vh !important;
+    margin: 0 !important;
+    box-shadow: none !important; /* Eliminates phone outline shadows */
+}
+
+/* Layout adaptation: Convert structural cards into a multi-column desktop grid */
+.dashboard-content, .main-layout, form, fieldset {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    gap: 1.5rem !important;
+    padding: 1.5rem !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+/* Let individual panels (Current Hazard, Risk Score, etc.) scale naturally */
+.card, .panel, section, .status-box {
+    flex: 1 1 calc(33.333% - 1.5rem) !important; /* Forces 3 components per row on desktop dashboards */
+    min-width: 300px !important; /* Maintains safety constraint for small resolutions */
+    box-sizing: border-box !important;
+}
+
+/* Keep structural headers and navigation navigation bars filling the window width */
+header, nav, .bottom-navbar, .footer {
+    width: 100% !important;
+    max-width: 100% !important;
+    left: 0 !important;
+    right: 0 !important;
+}
+
+/* Adaptive mobile layout configuration fallback */
+@media (max-width: 800px) {
+    .dashboard-content, .main-layout, form, fieldset {
+        flex-direction: column !important; /* Stacks panels perfectly if viewed on a phone */
+    }
+    .card, .panel, section, .status-box {
+        flex: 1 1 100% !important;
+    }
+}
     </style>
 </head>
 <body>
